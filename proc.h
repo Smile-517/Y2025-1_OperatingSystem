@@ -50,6 +50,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int weight;                  // New: Weight of the process
+  int request_tick;            // New: Total amount of CPU time a process requests
 };
 
 // Process memory is laid out contiguously, low addresses first:
