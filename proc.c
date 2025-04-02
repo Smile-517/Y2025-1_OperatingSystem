@@ -121,6 +121,7 @@ void userinit(void) {
     p->tf->eflags = FL_IF;
     p->tf->esp = PGSIZE;
     p->tf->eip = 0;  // beginning of initcode.S
+    p->weight = 1;   // default weight for init process
 
     safestrcpy(p->name, "initcode", sizeof(p->name));
     p->cwd = namei("/");
@@ -178,6 +179,7 @@ int fork(void) {
     np->parent = curproc;
     np->ticks = 0;
     *np->tf = *curproc->tf;
+    np->weight = curproc->weight;  // inherit weight from parent
 
     // Clear %eax so that fork returns 0 in the child.
     np->tf->eax = 0;
