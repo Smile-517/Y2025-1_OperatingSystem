@@ -469,3 +469,61 @@ void procdump(void) {
         cprintf("\n");
     }
 }
+
+int csprintf(char* str, int len) {
+    int i;
+    char tmpChar;
+    for (i = 0; str[i] != '\0'; i++) {
+        tmpChar = str[i + 1];
+        str[i + 1] = '\0';
+        cprintf("%s", &(str[i]));
+        str[i + 1] = tmpChar;
+    }
+    for (int j = 0; j < len - i; j++) {
+        cprintf(" ");
+    }
+    return 0;
+}
+
+int ciprintf(int num, int len) {
+    int i = 0;
+    int tmpNum = num;
+    if (num < 0) {
+        i++;
+    }
+    do {
+        i++;
+        tmpNum /= 10;
+    } while (tmpNum != 0);
+
+    cprintf("%d", num);
+    for (int j = 0; j < len - i; j++) {
+        cprintf(" ");
+    }
+    return 0;
+}
+
+int ps(void) {
+    cprintf("name    pid     state   weight  ticks: %d\n", ticks);
+
+    struct proc* p;
+    for (int i = 0; i < NPROC; i++) {
+        if (ptable.proc[i].state == UNUSED) continue;
+        
+        p = &ptable.proc[i];
+        char* name = p->name;
+        int pid = p->pid;
+        int state = p->state;
+        int weight = p->weight;
+        int ticksPc = p->ticks;
+
+        if (state == SLEEPING || state == RUNNABLE || state == RUNNING || state == ZOMBIE) {
+            csprintf(name, 8);
+            ciprintf(pid, 8);
+            ciprintf(state, 8);
+            ciprintf(weight, 8);
+            cprintf("%d\n", ticksPc);
+        }
+    }
+    return 0;
+}

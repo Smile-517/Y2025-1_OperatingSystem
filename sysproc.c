@@ -109,3 +109,5 @@ int sys_yield(void) {
     yield();
     return 0;
 }
+
+int sys_ps(void) { return ps(); }
