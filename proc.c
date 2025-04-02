@@ -510,16 +510,15 @@ int ps(void) {
 
     struct proc *p;
     for (int i = 0; i < NPROC; i++) {
-        if (ptable.proc[i].state == UNUSED) continue;
+        if (ptable.proc[i].state == SLEEPING || ptable.proc[i].state == RUNNABLE || ptable.proc[i].state == RUNNING ||
+            ptable.proc[i].state == ZOMBIE) {
+            p = &ptable.proc[i];
+            char *name = p->name;
+            int pid = p->pid;
+            int state = p->state;
+            int weight = p->weight;
+            int ticksPc = p->ticks;
 
-        p = &ptable.proc[i];
-        char *name = p->name;
-        int pid = p->pid;
-        int state = p->state;
-        int weight = p->weight;
-        int ticksPc = p->ticks;
-
-        if (state == SLEEPING || state == RUNNABLE || state == RUNNING || state == ZOMBIE) {
             csprintf(name, 8);
             ciprintf(pid, 8);
             ciprintf(state, 8);

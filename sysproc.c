@@ -75,15 +75,15 @@ int sys_sched_setattr(void) {
     if (request_tick <= 0) {
         return -1;
     }
-    myproc()->request_tick = request_tick;
-
     if (weight < 1) {
         weight = 1;
     } else if (weight > 5) {
         weight = 5;
     }
 
+    myproc()->request_tick = request_tick;
     myproc()->weight = weight;
+
     return 0;
 }
 
@@ -100,6 +100,7 @@ int sys_sched_getattr(void) {
     if (myproc()->weight < 1 || myproc()->weight > 5) {
         return -1;
     }
+
     *request_tickP = myproc()->request_tick;
     *weightP = myproc()->weight;
     return 0;
