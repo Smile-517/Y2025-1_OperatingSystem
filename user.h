@@ -30,6 +30,7 @@ int swapwrite(const char*, int);
 int sched_setattr(int request_tick, int weight);
 int sched_getattr(int* request_tick, int* weight);
 int yield(void);
+int ps(void);
 
 // ulib.c
 int stat(const char*, struct stat*);
