@@ -27,3 +27,4 @@
 #define SYS_sched_setattr 24
 #define SYS_sched_getattr 25
 #define SYS_yield 26
+#define SYS_ps 27
