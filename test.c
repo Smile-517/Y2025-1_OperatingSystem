@@ -22,12 +22,17 @@ int main() {
     int* request_tickP2 = malloc(sizeof(int));
     int* weightP2 = malloc(sizeof(int));
     if ((pid = fork()) == 0) {  // I am child
+        printf(1, "child 1\n");
         yield();
+        printf(1, "child 2\n");
         printf(1, "sched_getattr() at child, return value: %d\n", sched_getattr(request_tickP2, weightP2));
         printf(1, "request_tick: %d, weight: %d\n", *request_tickP2, *weightP2);
         printf(1, "child finished\n");
     } else {  // I am parent
+        printf(1, "parent 1\n");
+        wait();
         // yield();
+        printf(1, "parent 2\n");
         printf(1, "parent finished\n");
     }
 
