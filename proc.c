@@ -120,8 +120,9 @@ void userinit(void) {
     p->tf->ss = p->tf->ds;
     p->tf->eflags = FL_IF;
     p->tf->esp = PGSIZE;
-    p->tf->eip = 0;  // beginning of initcode.S
-    p->weight = 1;   // default weight for init process
+    p->tf->eip = 0;       // beginning of initcode.S
+    p->weight = 1;        // default weight for init process
+    p->request_tick = 1;  // default request_tick for init process
 
     safestrcpy(p->name, "initcode", sizeof(p->name));
     p->cwd = namei("/");
@@ -180,6 +181,7 @@ int fork(void) {
     np->ticks = 0;
     *np->tf = *curproc->tf;
     np->weight = curproc->weight;  // inherit weight from parent
+    np->request_tick = 1;          // default request_tick for child process
 
     // Clear %eax so that fork returns 0 in the child.
     np->tf->eax = 0;
@@ -470,7 +472,7 @@ void procdump(void) {
     }
 }
 
-int csprintf(char* str, int len) {
+int csprintf(char *str, int len) {
     int i;
     char tmpChar;
     for (i = 0; str[i] != '\0'; i++) {
@@ -506,12 +508,12 @@ int ciprintf(int num, int len) {
 int ps(void) {
     cprintf("name    pid     state   weight  ticks: %d\n", ticks);
 
-    struct proc* p;
+    struct proc *p;
     for (int i = 0; i < NPROC; i++) {
         if (ptable.proc[i].state == UNUSED) continue;
-        
+
         p = &ptable.proc[i];
-        char* name = p->name;
+        char *name = p->name;
         int pid = p->pid;
         int state = p->state;
         int weight = p->weight;
