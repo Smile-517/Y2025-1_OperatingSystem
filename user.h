@@ -29,6 +29,7 @@ int swapwrite(const char*, int);
 // declare new syscall functions for user space
 int sched_setattr(int request_tick, int weight);
 int sched_getattr(int* request_tick, int* weight);
+int yield(void);
 
 // ulib.c
 int stat(const char*, struct stat*);
