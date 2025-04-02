@@ -26,6 +26,10 @@ int uptime(void);
 int swapread(const char*, int);
 int swapwrite(const char*, int);
 
+// declare new syscall functions for user space
+int sched_setattr(int request_tick, int weight);
+int sched_getattr(int* request_tick, int* weight);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
