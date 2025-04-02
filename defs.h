@@ -120,6 +120,9 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             csprintf(char* str, int len);
+int             ciprintf(int num, int len);
+int             ps(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
