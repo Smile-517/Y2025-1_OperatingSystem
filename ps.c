@@ -9,6 +9,6 @@ int main(int argc, char** argv) {
     printf(1, "%d\n", sum);
 
     // uncomment the following line when your ps system call is ready
-    // ps();
+    ps();
     exit();
 }
