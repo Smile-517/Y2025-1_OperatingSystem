@@ -63,3 +63,44 @@ int sys_uptime(void) {
     release(&tickslock);
     return xticks;
 }
+
+// implement new syscalls
+int sys_sched_setattr(void) {
+    int request_tick;
+    int weight;
+
+    argint(0, &request_tick);
+    argint(1, &weight);
+
+    if (request_tick <= 0) {
+        return -1;
+    }
+    myproc()->request_tick = request_tick;
+
+    if (weight < 1) {
+        weight = 1;
+    } else if (weight > 5) {
+        weight = 5;
+    }
+
+    myproc()->weight = weight;
+    return 0;
+}
+
+int sys_sched_getattr(void) {
+    int* request_tickP;
+    int* weightP;
+
+    argptr(0, (char**)&request_tickP, sizeof(int));
+    argptr(1, (char**)&weightP, sizeof(int));
+
+    if (myproc()->request_tick <= 0) {
+        return -1;
+    }
+    if (myproc()->weight < 1 || myproc()->weight > 5) {
+        return -1;
+    }
+    *request_tickP = myproc()->request_tick;
+    *weightP = myproc()->weight;
+    return 0;
+}
