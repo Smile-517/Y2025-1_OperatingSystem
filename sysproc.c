@@ -104,3 +104,8 @@ int sys_sched_getattr(void) {
     *weightP = myproc()->weight;
     return 0;
 }
+
+int sys_yield(void) {
+    yield();
+    return 0;
+}
