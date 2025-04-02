@@ -22,3 +22,7 @@
 #define SYS_close  21
 #define SYS_swapread	22
 #define SYS_swapwrite	23
+
+// allocate numbers for new syscalls
+#define SYS_sched_setattr 24
+#define SYS_sched_getattr 25
