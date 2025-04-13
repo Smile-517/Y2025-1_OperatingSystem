@@ -303,7 +303,7 @@ void scheduler(void) {
         // Enable interrupts on this processor.
         sti();
 
-        // Loop over process table looking for process to run.
+        // Loop over process table looking for process to run. p는 proc이라는 스트럭트의 포인터. PCB를 의미한다.
         acquire(&ptable.lock);
         for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
             if (p->state != RUNNABLE) continue;
@@ -311,16 +311,17 @@ void scheduler(void) {
             // Switch to chosen process.  It is the process's job
             // to release ptable.lock and then reacquire it
             // before jumping back to us.
-            c->proc = p;
-            switchuvm(p);
+            c->proc = p;   // CPU의 proc에 현재 실행할 프로세스 PCB를 저장한다.
+            switchuvm(p);  // 유저 가상 메모리를 현재 실행할 프로세스의 메모리로 바꾼다.
             p->state = RUNNING;
 
-            swtch(&(c->scheduler), p->context);
-            switchkvm();
+            swtch(&(c->scheduler), p->context);  // c->scheduler는 스케줄러의 커널 context를 의미한다.
+                                                 // p->context는 현재 실행할 프로세스의 커널 context를 의미한다.
+            switchkvm();                         // 커널 가상 메모리를 커널의 메모리로 바꾼다.
 
             // Process is done running for now.
             // It should have changed its p->state before coming back.
-            c->proc = 0;
+            c->proc = 0;  // CPU의 proc에 null을 저장한다.
         }
         release(&ptable.lock);
     }
