@@ -43,8 +43,8 @@ struct proc {
   int pid;                     // Process ID
   int ticks;
   struct proc *parent;         // Parent process
-  struct trapframe *tf;        // Trap frame for current syscall
-  struct context *context;     // swtch() here to run process
+  struct trapframe *tf;        // Trap frame for current syscall. 유저 모드일 때의 레지스터 값들
+  struct context *context;     // swtch() here to run process. 커널 모드일 때의 레지스터 값들
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   struct file *ofile[NOFILE];  // Open files
