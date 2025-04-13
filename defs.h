@@ -122,6 +122,8 @@ void            wakeup(void*);
 void            yield(void);
 int             csprintf(char* str, int len);
 int             ciprintf(int num, int len);
+int             sched_setattr(int request_tick, int weight);
+int             sched_getattr(int* request_tickP, int* weightP);
 int             ps(void);
 
 // swtch.S
