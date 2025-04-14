@@ -293,7 +293,7 @@ int wait(void) {
 //   - eventually that process transfers control
 //       via swtch back to the scheduler.
 void scheduler(void) {
-    struct proc *p;
+    struct proc *p, *q;
     struct cpu *c = mycpu();
     c->proc = 0;
 
@@ -303,24 +303,44 @@ void scheduler(void) {
 
         // Loop over process table looking for process to run. p는 proc이라는 스트럭트의 포인터. PCB를 의미한다.
         acquire(&ptable.lock);
-        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-            if (p->state != RUNNABLE) continue;
-
-            // Switch to chosen process.  It is the process's job
-            // to release ptable.lock and then reacquire it
-            // before jumping back to us.
-            c->proc = p;   // CPU의 proc에 현재 실행할 프로세스 PCB를 저장한다.
-            switchuvm(p);  // 유저 가상 메모리를 현재 실행할 프로세스의 메모리로 바꾼다.
-            p->state = RUNNING;
-
-            swtch(&(c->scheduler), p->context);  // c->scheduler는 스케줄러의 커널 context를 의미한다.
-                                                 // p->context는 현재 실행할 프로세스의 커널 context를 의미한다.
-            switchkvm();                         // 커널 가상 메모리를 커널의 메모리로 바꾼다.
-
-            // Process is done running for now.
-            // It should have changed its p->state before coming back.
-            c->proc = 0;  // CPU의 proc에 null을 저장한다.
+        p = ptable.proc;
+        while (p < &ptable.proc[NPROC] && p->state != RUNNABLE) {
+            p++;
+            // if (p->pid == 5 || p->pid == 6 || p->pid == 7) {
+            //     cprintf("scheduler: pid: %d, weight: %d, ticks: %d, state: %d\n", p->pid, p->weight, ticks, p->state);
+            // }
         }
+
+        if (p >= &ptable.proc[NPROC]) {
+            release(&ptable.lock);
+            continue;
+        }
+
+        for (q = p; q < &ptable.proc[NPROC]; q++) {
+            if (q->state == RUNNABLE && q->weight > p->weight) {
+                p = q;
+            } else if (q->state == RUNNABLE && q->weight == p->weight && q->pid < p->pid) {
+                p = q;
+            }
+        }
+
+        cprintf("scheduler: pid: %d, weight: %d, ticks: %d\n", p->pid, p->weight, ticks);
+
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        c->proc = p;   // CPU의 proc에 현재 실행할 프로세스 PCB를 저장한다.
+        switchuvm(p);  // 유저 가상 메모리를 현재 실행할 프로세스의 메모리로 바꾼다.
+        p->state = RUNNING;
+
+        swtch(&(c->scheduler), p->context);  // c->scheduler는 스케줄러의 커널 context를 의미한다.
+                                             // p->context는 현재 실행할 프로세스의 커널 context를 의미한다.
+        switchkvm();                         // 커널 가상 메모리를 커널의 메모리로 바꾼다.
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;  // CPU의 proc에 null을 저장한다.
+
         release(&ptable.lock);
     }
 }
@@ -392,8 +412,8 @@ void sleep(void *chan, struct spinlock *lk) {
         release(lk);
     }
     // Go to sleep.
-    p->chan = chan;
-    p->state = SLEEPING;
+    p->chan = chan;       // 이 프로세스가 어떤 이벤트를 기다리는지를 저장함.
+    p->state = SLEEPING;  // 얘 때문에 이 함수에서는 yield()를 호출할 수 없다.
 
     sched();
 
