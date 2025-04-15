@@ -304,7 +304,7 @@ void scheduler(void) {
         // Loop over process table looking for process to run. p는 proc이라는 스트럭트의 포인터. PCB를 의미한다.
         acquire(&ptable.lock);
         p = ptable.proc;
-        while (p < &ptable.proc[NPROC] && p->state != RUNNABLE) {
+        while ((p < &ptable.proc[NPROC]) && (p->state != RUNNABLE)) {
             p++;
             // if (p->pid == 5 || p->pid == 6 || p->pid == 7) {
             //     cprintf("scheduler: pid: %d, weight: %d, ticks: %d, state: %d\n", p->pid, p->weight, ticks, p->state);
@@ -316,7 +316,7 @@ void scheduler(void) {
             continue;
         }
 
-        for (q = p; q < &ptable.proc[NPROC]; q++) {
+        for (q = p + 1; q < &ptable.proc[NPROC]; q++) {
             if (q->state == RUNNABLE && q->weight > p->weight) {
                 p = q;
             } else if (q->state == RUNNABLE && q->weight == p->weight && q->pid < p->pid) {
@@ -324,7 +324,8 @@ void scheduler(void) {
             }
         }
 
-        cprintf("scheduler: pid: %d, weight: %d, ticks: %d\n", p->pid, p->weight, ticks);
+        // for test!!!!!!!!
+        // cprintf("scheduler: pid: %d, weight: %d, ticks: %d\n", p->pid, p->weight, ticks);
 
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
