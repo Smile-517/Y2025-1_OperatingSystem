@@ -121,7 +121,9 @@ void userinit(void) {
     p->tf->eflags = FL_IF;
     p->tf->esp = PGSIZE;
     p->tf->eip = 0;  // beginning of initcode.S
-    p->weight = 2;   // default weight for init process
+
+    p->request_tick = D_REQ_TICK;  // default request tick for init process
+    p->weight = D_WEIGHT;          // default weight for init process
 
     safestrcpy(p->name, "initcode", sizeof(p->name));
     p->cwd = namei("/");
@@ -177,7 +179,8 @@ int fork(void) {
     }
     np->sz = curproc->sz;
     np->parent = curproc;
-    np->weight = curproc->weight;  // inherit weight from parent
+    np->request_tick = curproc->request_tick;  // inherit request tick from parent
+    np->weight = curproc->weight;              // inherit weight from parent
     np->ticks = 0;
     *np->tf = *curproc->tf;
 
@@ -304,18 +307,24 @@ void scheduler(void) {
         // Loop over process table looking for process to run. p는 proc이라는 스트럭트의 포인터. PCB를 의미한다.
         acquire(&ptable.lock);
         p = ptable.proc;
+
+        // State가 RUNNABLE인 프로세스를 찾는다.
         while ((p < &ptable.proc[NPROC]) && (p->state != RUNNABLE)) {
             p++;
+            // for test!!!!!!!!
             // if (p->pid == 5 || p->pid == 6 || p->pid == 7) {
-            //     cprintf("scheduler: pid: %d, weight: %d, ticks: %d, state: %d\n", p->pid, p->weight, ticks, p->state);
+            //     cprintf("scheduler: pid: %d, weight: %d, ticks: %d, state: %d\n", p->pid, p->weight, ticks,
+            //     p->state);
             // }
         }
 
+        // while 문을 빠져나온 이유가 p < &ptable.proc[NPROC]를 만족하지 못해서라면 스케줄링을 다시 시작한다.
         if (p >= &ptable.proc[NPROC]) {
             release(&ptable.lock);
             continue;
         }
 
+        // 더 나은 프로세스 q가 있는지 찾고, 있다면 이를 p에 저장한다.
         for (q = p + 1; q < &ptable.proc[NPROC]; q++) {
             if (q->state == RUNNABLE && q->weight > p->weight) {
                 p = q;
