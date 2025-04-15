@@ -14,11 +14,16 @@ struct {
 
 static struct proc *initproc;
 
+uint VirtualTime = 0;
+uint TotalWeight = 0;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+
+// for test!!!!!!!!
+// int printed = 0;
 
 void pinit(void) { initlock(&ptable.lock, "ptable"); }
 
@@ -121,7 +126,18 @@ void userinit(void) {
     p->tf->eflags = FL_IF;
     p->tf->esp = PGSIZE;
     p->tf->eip = 0;  // beginning of initcode.S
-    p->weight = 2;   // default weight for init process
+
+    p->request_tick = D_REQ_TICK;  // default request tick for init process
+    p->weight = D_WEIGHT;          // default weight for init process
+    TotalWeight += D_WEIGHT;       // update total weight
+
+    int curVirtualTime = VirtualTime;
+    p->VirtualTimeInit = curVirtualTime;
+    p->used_time = 0;  // mathematical reason: all processes are started with lag = 0
+    p->used_this_tick = 0;
+    p->VirtualEligible = curVirtualTime;  // mathematical reason: used_time is 0
+    p->VirtualDeadline = curVirtualTime + (D_REQ_TICK * SCALE / D_WEIGHT);
+    p->lag = 0;  // all processes are started with lag = 0
 
     safestrcpy(p->name, "initcode", sizeof(p->name));
     p->cwd = namei("/");
@@ -177,7 +193,20 @@ int fork(void) {
     }
     np->sz = curproc->sz;
     np->parent = curproc;
-    np->weight = curproc->weight;  // inherit weight from parent
+    int cur_request_tick = curproc->request_tick;
+    int cur_weight = curproc->weight;
+    np->request_tick = cur_request_tick;  // inherit request tick from parent
+    np->weight = cur_weight;              // inherit weight from parent
+    TotalWeight += cur_weight;            // update total weight
+
+    int curVirtualTime = VirtualTime;
+    np->VirtualTimeInit = curVirtualTime;
+    np->used_time = 0;  // mathematical reason: all processes are started with lag = 0
+    np->used_this_tick = 0;
+    np->VirtualEligible = curVirtualTime;  // mathematical reason: used_time is 0
+    np->VirtualDeadline = curVirtualTime + (cur_request_tick * SCALE / cur_weight);
+    np->lag = 0;  // all processes are started with lag = 0
+
     np->ticks = 0;
     *np->tf = *curproc->tf;
 
@@ -225,6 +254,9 @@ void exit(void) {
     curproc->cwd = 0;
 
     acquire(&ptable.lock);
+
+    // 이 프로세스의 weight를 total weight에서 빼준다.
+    TotalWeight -= curproc->weight;
 
     // Parent might be sleeping in wait().
     wakeup1(curproc->parent);
@@ -293,7 +325,7 @@ int wait(void) {
 //   - eventually that process transfers control
 //       via swtch back to the scheduler.
 void scheduler(void) {
-    struct proc *p;
+    struct proc *p, *q;
     struct cpu *c = mycpu();
     c->proc = 0;
 
@@ -301,26 +333,86 @@ void scheduler(void) {
         // Enable interrupts on this processor.
         sti();
 
-        // Loop over process table looking for process to run. p는 proc이라는 스트럭트의 포인터. PCB를 의미한다.
         acquire(&ptable.lock);
+
+        // EEVDF 스케줄러에 필요한 값들을 계산한다.
         for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-            if (p->state != RUNNABLE) continue;
+            if (p->state == RUNNABLE) {
+                p->VirtualEligible = p->VirtualTimeInit + (p->used_time * SCALE / p->weight);
+                p->VirtualDeadline = p->VirtualEligible + (p->request_tick * SCALE / p->weight);
+                p->lag = p->weight * (VirtualTime - p->VirtualTimeInit) - (p->used_time * SCALE);
 
-            // Switch to chosen process.  It is the process's job
-            // to release ptable.lock and then reacquire it
-            // before jumping back to us.
-            c->proc = p;   // CPU의 proc에 현재 실행할 프로세스 PCB를 저장한다.
-            switchuvm(p);  // 유저 가상 메모리를 현재 실행할 프로세스의 메모리로 바꾼다.
-            p->state = RUNNING;
+                // lag의 계산이 VirtualEligible과 VirtualTime보다 더 정확하기 때문에 comment out하였습니다.
+                // if (p->VirtualEligible < VirtualTime) {
+                //     // for test!!!!!!!!
+                //     if (p->lag < 0) {
+                //         cprintf(
+                //             "VirtualEligible < VirtualTime but lag < 0. VirtualTime: %d, VirtualEligible: %d, lag: %d\n",
+                //             VirtualTime, p->VirtualEligible, p->lag);
+                //     }
+                //     p->lag = 0;
+                // }
 
-            swtch(&(c->scheduler), p->context);  // c->scheduler는 스케줄러의 커널 context를 의미한다.
-                                                 // p->context는 현재 실행할 프로세스의 커널 context를 의미한다.
-            switchkvm();                         // 커널 가상 메모리를 커널의 메모리로 바꾼다.
-
-            // Process is done running for now.
-            // It should have changed its p->state before coming back.
-            c->proc = 0;  // CPU의 proc에 null을 저장한다.
+                // for test!!!!!!!!
+                // cprintf(
+                //     "VirtualTime: %d, pid: %d, request_tick: %d, weight: %d, TotalWeight:%d, VirtualTimeInit: "
+                //     "%d, "
+                //     "used_time: %d, "
+                //     "VirtualEligible: %d, "
+                //     "VirtualDeadline: %d, lag: %d\n",
+                //     VirtualTime, p->pid, p->request_tick, p->weight, TotalWeight, p->VirtualTimeInit, p->used_time,
+                //     p->VirtualEligible, p->VirtualDeadline, p->lag);
+            }
         }
+
+        // 계산된 값들을 바탕으로 스케줄링을 한다. 실행할 수 있는 프로세스가 있는지 찾는다.
+        p = ptable.proc;
+        while ((p < &ptable.proc[NPROC]) && !(p->state == RUNNABLE && p->lag >= 0)) {
+            p++;
+        }
+
+        // while 문을 빠져나온 이유가 p < &ptable.proc[NPROC]를 만족하지 못해서라면 스케줄링을 다시 시작한다.
+        if (p >= &ptable.proc[NPROC]) {
+            release(&ptable.lock);
+            // for test!!!!!!!!
+            // if (printed == 0) cprintf("(%d)", VirtualTime);
+            // printed = 1;
+            continue;
+        }
+
+        // 더 나은 프로세스 q가 있는지 찾고, 있다면 이를 p에 저장한다.
+        for (q = p + 1; q < &ptable.proc[NPROC]; q++) {
+            if ((q->state == RUNNABLE && q->lag >= 0) && (q->VirtualDeadline < p->VirtualDeadline)) {
+                p = q;
+            } else if ((q->state == RUNNABLE && q->lag >= 0) && (q->VirtualDeadline == p->VirtualDeadline) &&
+                       (q->pid < p->pid)) {
+                p = q;
+            }
+        }
+
+        // for test!!!!!!!!
+        // cprintf("%d", p->pid);
+
+        // Switch to chosen process.  It is the process's job
+        // to release ptable.lock and then reacquire it
+        // before jumping back to us.
+        c->proc = p;   // CPU의 proc에 현재 실행할 프로세스 PCB를 저장한다.
+        switchuvm(p);  // 유저 가상 메모리를 현재 실행할 프로세스의 메모리로 바꾼다.
+        p->state = RUNNING;
+
+        swtch(&(c->scheduler), p->context);  // c->scheduler는 스케줄러의 커널 context를 의미한다.
+                                             // p->context는 현재 실행할 프로세스의 커널 context를 의미한다.
+        switchkvm();                         // 커널 가상 메모리를 커널의 메모리로 바꾼다.
+
+        if (p->used_this_tick == 0) {
+            p->used_time++;
+            p->used_this_tick = 1;
+        }
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;  // CPU의 proc에 null을 저장한다.
+
         release(&ptable.lock);
     }
 }
@@ -394,6 +486,8 @@ void sleep(void *chan, struct spinlock *lk) {
     // Go to sleep.
     p->chan = chan;
     p->state = SLEEPING;
+    // 주의: 이 프로세스는 더이상 active하지 않으므로 TotalWeight에서 빼야 한다!!!!!!!!
+    TotalWeight -= p->weight;
 
     sched();
 
@@ -413,8 +507,13 @@ void sleep(void *chan, struct spinlock *lk) {
 static void wakeup1(void *chan) {
     struct proc *p;
 
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-        if (p->state == SLEEPING && p->chan == chan) p->state = RUNNABLE;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->state == SLEEPING && p->chan == chan) {
+            p->state = RUNNABLE;
+            // 주의: 이 프로세스는 다시 active하므로 TotalWeight에 더해줘야 한다!!!!!!!!
+            TotalWeight += p->weight;
+        }
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -511,11 +610,16 @@ int sched_setattr(int request_tick, int weight) {
     if (p == 0) {
         return -1;
     }
+    int weight_original = p->weight;
+    if (weight_original < 1 || weight_original > 5) {
+        return -1;
+    }
 
     p->request_tick = request_tick;
     p->weight = weight;
 
-    // Hint: When implementing the EEVDF scheduler, total weight needs to be updated here.
+    TotalWeight -= weight_original;
+    TotalWeight += weight;
 
     return 0;
 }
@@ -563,4 +667,24 @@ int ps(void) {
         }
     }
     return 0;
+}
+
+void update_virtual_time(void) {
+    if (TotalWeight > 0) {  // active한 프로세스가 최소 하나 이상 있을 때만 업데이트한다.
+        if ((SCALE / TotalWeight) >= 1) {
+            VirtualTime += SCALE / TotalWeight;  // max(TotalWeight) = 64 * 5 = 320.
+        } else {                                 // in fact, TotalWeight cannot exceed the SCALE.
+            VirtualTime += 1;
+        }
+        // for test!!!!!!!!
+        // printed = 0;
+    }
+}
+
+void update_tick_flag(void) {
+    for (struct proc *p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->state != UNUSED && p->state != ZOMBIE) {
+            p->used_this_tick = 0;  // reset the flag
+        }
+    }
 }

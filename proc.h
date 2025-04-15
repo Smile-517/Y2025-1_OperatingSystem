@@ -50,8 +50,17 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int weight;                  // New: Weight of the process
-  int request_tick;            // New: Total amount of CPU time a process requests
+  // Define new variables
+  int request_tick;            // Total amount of CPU time a process requests
+  int weight;                  // Weight of the process
+
+  int VirtualTimeInit;         // Virtual time at which job made its request
+  int used_time;               // Total amount of CPU tick a process has used
+  int used_this_tick;
+  int VirtualEligible;         // The virtual time at which a job becomes eligible for service
+  int VirtualDeadline;         // The virtual time by which the job should be completed
+  int lag;                     // The difference between the service time a job should have received in an ideal
+                               // system and the actually service time it received.
 };
 
 // Process memory is laid out contiguously, low addresses first:

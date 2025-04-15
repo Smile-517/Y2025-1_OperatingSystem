@@ -125,6 +125,8 @@ int             ciprintf(int num, int len);
 int             sched_setattr(int request_tick, int weight);
 int             sched_getattr(int* request_tickP, int* weightP);
 int             ps(void);
+void            update_virtual_time(void);
+void            update_tick_flag(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
