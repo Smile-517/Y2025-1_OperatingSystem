@@ -545,7 +545,7 @@ int sched_setattr(int request_tick, int weight) {
     p->request_tick = request_tick;
     p->weight = weight;
 
-    // Hint: When implementing the EEVDF scheduler, total weight needs to be updated here.
+    yield();
 
     return 0;
 }
