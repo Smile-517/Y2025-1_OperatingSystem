@@ -621,6 +621,8 @@ int sched_setattr(int request_tick, int weight) {
     TotalWeight -= weight_original;
     TotalWeight += weight;
 
+    yield();
+
     return 0;
 }
 
