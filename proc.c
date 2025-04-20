@@ -486,8 +486,6 @@ void sleep(void *chan, struct spinlock *lk) {
     // Go to sleep.
     p->chan = chan;
     p->state = SLEEPING;
-    // 주의: 이 프로세스는 더이상 active하지 않으므로 TotalWeight에서 빼야 한다!!!!!!!!
-    TotalWeight -= p->weight;
 
     sched();
 
@@ -510,8 +508,6 @@ static void wakeup1(void *chan) {
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
         if (p->state == SLEEPING && p->chan == chan) {
             p->state = RUNNABLE;
-            // 주의: 이 프로세스는 다시 active하므로 TotalWeight에 더해줘야 한다!!!!!!!!
-            TotalWeight += p->weight;
         }
     }
 }
